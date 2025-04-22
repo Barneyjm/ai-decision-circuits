@@ -1,25 +1,40 @@
 # Customer Call Categorization Evaluator
 
-This script evaluates an LLM's ability to categorize customer service calls for a water utility company based on the customer's input text.
+This project evaluates an LLM's ability to categorize customer service calls for a water utility company based on the customer's input text, using a robust multi-strategy approach.
 
 ## Overview
 
-The script:
-1. Reads customer call data from a JSON file
-2. Sends each customer input to Anthropic's Claude model for classification
-3. Compares the LLM's prediction with the actual category
-4. Generates detailed evaluation metrics including accuracy, precision, recall, and F1 score
+The project includes two main evaluation approaches:
+
+### Basic Evaluation
+- Reads customer call data from a JSON file
+- Sends each customer input to Anthropic's Claude model for classification
+- Compares the LLM's prediction with the actual category
+- Generates basic evaluation metrics
+
+### Robust Evaluation
+The robust evaluation system uses multiple strategies to improve classification reliability:
+
+1. **Primary Parser**: Direct command with format expectations
+2. **Backup Parser**: Chain of thought approach for more complex reasoning
+3. **Negative Checker**: Determines if text contains enough information to categorize
+4. **Schema Validator**: Checks if output matches expected schema
+
+Results from these strategies are combined to produce:
+- Final classification with confidence levels (high, medium, low)
+- Flags for calls that need human review
+- Comprehensive evaluation metrics
 
 ## Available Categories
 
-The script evaluates classification into these categories:
+The system evaluates classification into these categories:
 - RESTORE
 - ABATEMENT
-- AMR
+- AMR (METERING)
 - BILLING
-- BPCS
-- BTR/O
-- C/I - DEP
+- BPCS (BROKEN PIPE)
+- BTR/O (BAD TASTE & ODOR)
+- C/I - DEP (CAVE IN/DEPRESSION)
 - CEMENT
 - CHOKED DRAIN
 - CLAIMS
@@ -34,31 +49,31 @@ The script evaluates classification into these categories:
 
 2. Create a `.env` file with your Anthropic API key:
    ```
-   cp .env.example .env
+   ANTHROPIC_API_KEY=your_api_key_here
    ```
-   Then edit the `.env` file to add your actual Anthropic API key.
 
 ## Usage
 
-Run the script with:
+### Running Basic Evaluation
 ```
-python evaluate_calls.py
+python evaluate.py --input customer-calls.json --output evaluation_results.json
 ```
 
-Optional arguments:
+### Running Robust Evaluation
+```
+python run_robust_evaluation.py --input customer-calls.json --output robust_evaluation_results.json --model claude-3-7-sonnet-20250219
+```
+
+### Command-line Arguments
 - `--input`: Path to the customer calls JSON file (default: "customer-calls.json")
-- `--output`: Path to save evaluation results (default: "evaluation_results.json")
+- `--output`: Path to save evaluation results (default: "evaluation_results.json" or "robust_evaluation_results.json")
+- `--limit`: Limit the number of calls to process (optional, for testing)
+- `--model`: Model to use for classification (default: "claude-3-7-sonnet-20250219")
 
-Example:
-```
-python evaluate_calls.py --input my_calls.json --output my_results.json
-```
+## Evaluation Metrics
 
-## Output
-
-The script generates a JSON file with:
-- Individual results for each call
-- Overall accuracy metrics
-- Per-category metrics (precision, recall, F1 score)
-
-It also prints a summary of the results to the console.
+The robust evaluation generates comprehensive metrics including:
+- Overall accuracy
+- Per-category performance (precision, recall, F1 score)
+- Confidence-level metrics (accuracy by confidence level)
+- Statistics on calls flagged for human review
