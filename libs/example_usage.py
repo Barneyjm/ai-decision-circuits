@@ -185,5 +185,36 @@ def main():
     print(f"Predicted type: {config_result['call_type']}")
     print(f"Confidence: {config_result.get('confidence', 'unknown')}")
 
+    # Example 5: Using the amplify method
+    print("\n--- Example 5: Amplify Method ---")
+    # Reuse the first evaluator or create a new one if specific categories are needed
+    # For this example, the generic_categories evaluator is fine.
+    # If 'evaluator' was defined in a narrower scope, we'd redefine it:
+    # amplify_evaluator = RobustEvaluator(categories=generic_categories)
+    amplify_evaluator = evaluator # Reusing the evaluator from Example 1
+
+    sample_text_for_amplification = "My internet is slow."
+    amplification_factor = 2.0
+
+    print(f"Original input: \"{sample_text_for_amplification}\"")
+    print(f"Amplification factor: {amplification_factor}")
+
+    amplified_result = amplify_evaluator.amplify(
+        input_text=sample_text_for_amplification,
+        amplification_factor=amplification_factor
+    )
+
+    print(f"Amplified predicted type: {amplified_result['call_type']}")
+    print(f"Amplified confidence: {amplified_result.get('confidence', 'unknown')}")
+    # Showcasing parts of the _debug info that relate to amplification
+    if "_debug" in amplified_result:
+        print(f"Amplification instruction used: {amplified_result['_debug'].get('amplification_instruction')}")
+        if "amplified_primary_output" in amplified_result["_debug"]:
+            print(f"Debug - Amplified primary parser output: {amplified_result['_debug']['amplified_primary_output']}")
+        else:
+            print("Debug - Amplified primary output not found in debug info.")
+    else:
+        print("Debug info not available in the result.")
+
 if __name__ == "__main__":
     main()

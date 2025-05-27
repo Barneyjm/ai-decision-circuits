@@ -1,0 +1,30 @@
+name: Build Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on tags like v1.0.0, v0.1.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10' # Consistent with other workflows
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install setuptools wheel
+    - name: Build package
+      run: |
+        python libs/setup.py sdist bdist_wheel
+        # The command will create a dist/ directory inside libs/
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: libs/dist/ # Path to the distribution files created by setup.py
+        if-no-files-found: error # Fail the workflow if no files are found to upload

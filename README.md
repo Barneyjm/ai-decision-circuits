@@ -1,4 +1,5 @@
 # Customer Call Categorization Evaluator
+[![Python Linter](https://github.com/Barneyjm/ai-decision-circuits/actions/workflows/lint.yml/badge.svg)](https://github.com/Barneyjm/ai-decision-circuits/actions/workflows/lint.yml) [![Python Tests](https://github.com/Barneyjm/ai-decision-circuits/actions/workflows/pytest.yml/badge.svg)](https://github.com/Barneyjm/ai-decision-circuits/actions/workflows/pytest.yml) [![Build Package](https://github.com/Barneyjm/ai-decision-circuits/actions/workflows/build.yml/badge.svg)](https://github.com/Barneyjm/ai-decision-circuits/actions/workflows/build.yml)
 
 This project evaluates an LLM's ability to categorize customer service calls for a water utility company based on the customer's input text, using a robust multi-strategy approach.
 
