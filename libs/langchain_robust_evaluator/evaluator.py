@@ -126,7 +126,134 @@ class RobustEvaluator(Runnable):
         }
         
         return combined_result
-    
+
+    def amplify(self, input_text: str, amplification_factor: float = 1.5, config: Optional[RunnableConfig] = None) -> Dict[str, Any]:
+        """Process input text through parsers with an amplification step and combine results.
+        
+        Args:
+            input_text: The text to classify
+            amplification_factor: Factor to determine the intensity of amplification
+            config: Optional runnable configuration
+            
+        Returns:
+            Dictionary containing the classification result with confidence and amplification info
+        """
+        # Run all parsers to get base results
+        parser_results = {}
+        for name, parser in self.parsers.items():
+            parser_results[name] = parser.invoke(input_text)
+
+        # Determine amplification instruction based on the factor
+        if amplification_factor > 2.0:
+            amplification_instruction = "Amplify your response significantly, providing extensive details and expressing strong confidence."
+        elif amplification_factor > 1.0:
+            amplification_instruction = f"Amplify your response, providing more detail and expressing higher confidence by a factor of {amplification_factor}."
+        elif amplification_factor == 1.0:
+            amplification_instruction = "Provide your standard response." # No real amplification
+        else: # amplification_factor < 1.0, potentially de-amplification or slight amplification
+            amplification_instruction = f"Slightly amplify your response, providing a bit more detail. Factor: {amplification_factor}."
+
+        # Construct the modified prompt for the primary parser
+        # Assuming the primary parser can handle a prompt dictionary or has a default way to take instructions
+        amplified_primary_input = {
+            "input": input_text, 
+            "instruction": amplification_instruction,
+            # If the primary parser expects a specific prompt structure, this needs to be adapted.
+            # For now, sending as a dictionary, assuming the parser can handle it.
+            # Alternatively, we might need to access the parser's prompt_template and modify it.
+            # For simplicity, let's assume the primary parser can take a modified input like this.
+            # If not, we would need to get the original prompt and append the instruction.
+            "original_prompt_text_key_if_needed": f"{input_text}\n\nInstruction: {amplification_instruction}"
+        }
+        
+        # Re-invoke the primary parser with the modified prompt.
+        # This is a simplification. The actual re-invocation might be more complex
+        # depending on how PrimaryParser is implemented and if it supports direct instruction injection.
+        # If PrimaryParser uses a fixed prompt template, we might need a more sophisticated way
+        # to modify the prompt, or the PrimaryParser itself would need an 'amplify' mode.
+        
+        # For now, let's assume the primary parser is the first one in self.parsers dictionary (e.g., self.parsers["primary"])
+        # And it can be invoked with the modified input.
+        if "primary" in self.parsers:
+            # This assumes the primary parser's invoke method can handle a dictionary
+            # or a string that now includes the instruction.
+            # If the primary parser expects just a string, we'd use:
+            # amplified_prompt_text = f"{input_text}\n\nInstruction: {amplification_instruction}"
+            # parser_results["primary_amplified"] = self.parsers["primary"].invoke(amplified_prompt_text)
+            # For now, let's stick to a more structured input if possible, assuming PrimaryParser is flexible.
+            # If it strictly expects the same input format as other parsers (just input_text),
+            # then this approach will need to be revised.
+            # A common way is to have a specific key in the input dict that the parser looks for.
+            
+            # Let's assume the PrimaryParser can be re-invoked with the original input_text,
+            # and the amplification instruction is handled internally by the parser if it's designed for it,
+            # or by passing a modified prompt.
+            # For this exercise, we'll assume the primary parser takes the original input text,
+            # and we need to create a modified prompt string.
+            
+            # Get the original prompt for the primary parser, if available
+            primary_parser_prompt_template = self.prompt_templates.get(
+                "primary", 
+                "Classify the following text: {input_text}\nCategories: {categories}" # A default fallback
+            )
+            
+            # Construct the amplified prompt text
+            # Ensure categories are passed if the template requires them
+            formatted_categories = ", ".join(self.categories)
+            amplified_prompt_text = primary_parser_prompt_template.format(
+                input_text=input_text, 
+                categories=formatted_categories
+            ) + f"\n\n{amplification_instruction}"
+
+            # Re-invoke the primary parser with the amplified prompt
+            amplified_primary_result = self.parsers["primary"].invoke(amplified_prompt_text)
+            parser_results["primary_amplified"] = amplified_primary_result
+        else:
+            # Fallback if primary parser is not found, though it should be there
+            parser_results["primary_amplified"] = parser_results.get("primary", {})
+
+
+        # Validate the amplified primary result schema (or the original primary if amplification failed)
+        # The schema validator should ideally run on the result that will be used by the combiner.
+        # If 'primary_amplified' is the new primary, it should be validated.
+        validation_result = self.schema_validator.invoke(parser_results.get("primary_amplified", parser_results.get("primary", {})))
+        
+        # Combine results - the combiner needs to be aware of the 'primary_amplified' result
+        # Or we can replace the 'primary' result with the 'primary_amplified' one before combining.
+        # Let's pass all results and let the combiner decide, or update the primary result.
+        
+        # Option 1: Let combiner handle it (requires combiner modification)
+        # combined_input_to_combiner = {
+        #     "parser_results": parser_results, # now includes "primary_amplified"
+        #     "validation_result": validation_result,
+        #     "input_text": input_text,
+        #     "amplification_factor": amplification_factor
+        # }
+
+        # Option 2: Replace primary result before combining (simpler for existing combiner)
+        # Create a mutable copy of parser_results for the combiner if necessary
+        results_for_combiner = parser_results.copy()
+        if "primary_amplified" in results_for_combiner:
+            results_for_combiner["primary"] = results_for_combiner["primary_amplified"] # Overwrite primary with amplified
+
+        combined_result = self.combiner.invoke({
+            "parser_results": results_for_combiner, # Use the (potentially) updated results
+            "validation_result": validation_result,
+            "input_text": input_text
+        })
+        
+        # Add debug and amplification info
+        combined_result["_debug"] = {
+            "parser_results": parser_results, # contains original and amplified primary
+            "validation_result": validation_result,
+            "amplification_factor": amplification_factor,
+            "amplification_instruction": amplification_instruction
+        }
+        if "primary_amplified" in parser_results: # Add more specific debug for amplified output
+            combined_result["_debug"]["amplified_primary_output"] = parser_results["primary_amplified"]
+
+        return combined_result
+
     def batch_evaluate(self, calls: List[Dict[str, Any]], limit: Optional[int] = None) -> Dict[str, Any]:
         """Evaluate a batch of calls and calculate metrics.
         
